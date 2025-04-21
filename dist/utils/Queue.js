@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const ErrorResponse_1 = __importDefault(require("./ErrorResponse"));
+const metrics_1 = __importDefault(require("../data/metrics"));
 class Queue {
     constructor(name, concurrency, executor, maxItems = 5) {
         this.jobIdCounter = 1;
@@ -22,10 +22,10 @@ class Queue {
         this.maxItems = 100;
         this.items = {
             waiting: [
-                { id: 1, data: {}, retries: 0 },
-                { id: 2, data: {}, retries: 0 },
-                { id: 3, data: {}, retries: 0 },
-                { id: 4, data: {}, retries: 0 }
+            // { id: 1, data: {}, retries: 0 },
+            // { id: 2, data: {}, retries: 0 },
+            // { id: 3, data: {}, retries: 0 },
+            // { id: 4, data: {}, retries: 0 }
             ],
             completed: [],
             failed: [],
@@ -41,9 +41,6 @@ class Queue {
     enqueue(data) {
         return __awaiter(this, void 0, void 0, function* () {
             const job = { id: this.jobIdCounter++, data, retries: 0 };
-            if (this.items.waiting.length >= this.maxItems) {
-                throw new ErrorResponse_1.default(429, "queueFull", "Queue is full.Cannot enqueue more tasks");
-            }
             this.items.waiting.push(job);
             this.runQueue();
         });
@@ -65,13 +62,14 @@ class Queue {
     }
     processJob(job) {
         return __awaiter(this, void 0, void 0, function* () {
-            const processingTime = Math.floor(Math.random() * (30000 - 10000 + 1)) + 10000;
+            const startTime = Date.now();
+            const processingTime = Math.floor(Math.random() * (3000 - 1000 + 1)) + 1000;
             return new Promise((resolve) => {
                 setTimeout(() => __awaiter(this, void 0, void 0, function* () {
                     try {
                         yield this.executor(job);
                         // Push item to completed items
-                        this.items.completed.push(job);
+                        this.onComplete(job, Date.now() - startTime);
                     }
                     catch (err) {
                         job.retries++;
@@ -80,10 +78,9 @@ class Queue {
                             this.items.waiting.unshift(job);
                         // Declare job as failed
                         else
-                            this.items.failed.push(job);
+                            this.onFailed(job, Date.now() - startTime);
                     }
                     resolve("processed");
-                    // console.log("this items", this.items);
                 }), processingTime);
             });
         });
@@ -93,20 +90,31 @@ class Queue {
             return this.items.waiting.splice(0, number);
         });
     }
-    getLenOfQueuedJobs() {
+    isFull() {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this.items.waiting.length >= this.maxItems;
+        });
+    }
+    getLength() {
         return __awaiter(this, void 0, void 0, function* () {
             return this.items.waiting.length;
         });
     }
-    onComplete(hook) {
+    onComplete(job, duration) {
         return __awaiter(this, void 0, void 0, function* () {
-            hook();
+            this.items.completed.push(job);
+            metrics_1.default.jobs_processed_total++;
+            metrics_1.default.processing_times.push(duration);
+            metrics_1.default.queue_current_length = this.items.waiting.length;
         });
     }
     ;
-    onFailed(hook) {
+    onFailed(job, duration) {
         return __awaiter(this, void 0, void 0, function* () {
-            hook();
+            this.items.completed.push(job);
+            metrics_1.default.jobs_processed_total++;
+            metrics_1.default.processing_times.push(duration);
+            metrics_1.default.queue_current_length = this.items.waiting.length;
         });
     }
     ;

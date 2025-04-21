@@ -1,4 +1,4 @@
-import ErrorResponse from "./ErrorResponse";
+import metrics from "../data/metrics";
 
 class Queue {
     private jobIdCounter: number = 1;
@@ -10,10 +10,10 @@ class Queue {
 
     private items: JobItems = {
         waiting: [
-            { id: 1, data: {}, retries: 0 },
-            { id: 2, data: {}, retries: 0 },
-            { id: 3, data: {}, retries: 0 },
-            { id: 4, data: {}, retries: 0 }
+            // { id: 1, data: {}, retries: 0 },
+            // { id: 2, data: {}, retries: 0 },
+            // { id: 3, data: {}, retries: 0 },
+            // { id: 4, data: {}, retries: 0 }
         ],
         completed: [],
         failed: [],
@@ -39,14 +39,6 @@ class Queue {
     async enqueue(data: object) {
         const job: IJob = { id: this.jobIdCounter++, data, retries: 0 }
 
-        if (this.items.waiting.length >= this.maxItems) {
-            throw new ErrorResponse(
-                429,
-                "queueFull",
-                "Queue is full.Cannot enqueue more tasks"
-            );
-        }
-
         this.items.waiting.push(job);
         
         this.runQueue();
@@ -71,7 +63,9 @@ class Queue {
     }
 
     async processJob(job: IJob) {
-        const processingTime = Math.floor(Math.random() * (30000 - 10000 + 1)) + 10000;
+        const startTime = Date.now();
+
+        const processingTime = Math.floor(Math.random() * (3000 - 1000 + 1)) + 1000;
 
         return new Promise((resolve) => {
             setTimeout(async () => {
@@ -79,19 +73,17 @@ class Queue {
                     await this.executor(job);
 
                     // Push item to completed items
-                    this.items.completed.push(job);
+                    this.onComplete(job, Date.now() - startTime)
                 } catch (err) {
                     job.retries++;
 
                     // Push item back to waiting job for retry
                     if (job.retries < 2) this.items.waiting.unshift(job);
-
                     // Declare job as failed
-                    else this.items.failed.push(job);
+                    else this.onFailed(job, Date.now() - startTime);
                 }
 
                 resolve("processed");
-                // console.log("this items", this.items);
             }, processingTime);
         });
     }
@@ -100,16 +92,26 @@ class Queue {
         return this.items.waiting.splice(0, number);
     }
 
-    async getLenOfQueuedJobs () {
+    async isFull () {
+        return this.items.waiting.length >=this.maxItems;
+    }
+
+    async getLength () {
         return this.items.waiting.length;
     }
 
-    async onComplete (hook: () => Promise<any>  ) {
-        hook()
+    async onComplete (job: IJob, duration: number) {
+        this.items.completed.push(job);
+        metrics.jobs_processed_total++;
+        metrics.processing_times.push(duration);
+        metrics.queue_current_length = this.items.waiting.length;
     };
 
-    async onFailed (hook: () => Promise<any>  ) {
-        hook();
+    async onFailed (job: IJob, duration: number) {
+        this.items.completed.push(job);
+        metrics.jobs_processed_total++;
+        metrics.processing_times.push(duration);
+        metrics.queue_current_length = this.items.waiting.length;
     };
 }
 
