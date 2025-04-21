@@ -3,7 +3,8 @@ import router from "./routes";
 
 const app = express();
 
-// Mount routes
+app.use(express.json());
+
 app.use(router);
 
 app.listen(5555, () => console.log("Server running"));
