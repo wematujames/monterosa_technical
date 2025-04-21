@@ -1,4 +1,4 @@
-
+import ErrorResponse from "./ErrorResponse";
 
 class Queue {
     private jobIdCounter: number = 1;
@@ -6,6 +6,7 @@ class Queue {
     private concurrency: number = 1;
     private executor: (job: IJob) => Promise<any>;
     private isQueueProcessing: boolean = false;
+    private maxItems: number = 100;
 
     private items: JobItems = {
         waiting: [
@@ -21,10 +22,13 @@ class Queue {
     constructor(
         name: string, 
         concurrency: number,
-        executor: (job: IJob) => Promise<any>
+        executor: (job: IJob) => Promise<any>,
+        maxItems: number = 5,
     ) {
         this.name = name;
         this.concurrency = concurrency;
+
+        if (maxItems) this.maxItems = maxItems;
 
         this.executor = executor;
 
@@ -34,7 +38,15 @@ class Queue {
 
     async enqueue(data: object) {
         const job: IJob = { id: this.jobIdCounter++, data, retries: 0 }
-        
+
+        if (this.items.waiting.length >= this.maxItems) {
+            throw new ErrorResponse(
+                429,
+                "queueFull",
+                "Queue is full.Cannot enqueue more tasks"
+            );
+        }
+
         this.items.waiting.push(job);
         
         this.runQueue();
@@ -51,7 +63,7 @@ class Queue {
             const promises = itemsToProcess.map(item => {
                 return this.processJob(item)
             });
-            
+
             await Promise.all(promises);
         }
 
@@ -59,7 +71,7 @@ class Queue {
     }
 
     async processJob(job: IJob) {
-        const processingTime = Math.floor(Math.random() * (300 - 100 + 1)) + 100;
+        const processingTime = Math.floor(Math.random() * (30000 - 10000 + 1)) + 10000;
 
         return new Promise((resolve) => {
             setTimeout(async () => {
@@ -92,7 +104,9 @@ class Queue {
         return this.items.waiting.length;
     }
 
-    async onComplete (hook: () => Promise<any>  ) {};
+    async onComplete (hook: () => Promise<any>  ) {
+        hook()
+    };
 
     async onFailed (hook: () => Promise<any>  ) {
         hook();

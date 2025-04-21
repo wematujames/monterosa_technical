@@ -1,12 +1,12 @@
 import { Request, Response, NextFunction } from "express";
+import ErrorResponse from "../utils/ErrorResponse";
 
-module.exports = (err: Error, req: Request, res: Response, next: NextFunction) => {
-    console.log(err.stack);
-    
-    // Send error response //err.statusCode ||
-    res.status(500).json({
-        // statusCode: err.statusCode || 500,
+const errorHandler =  (err: ErrorResponse & Error, req: Request, res: Response, next: NextFunction) => {
+    res.status(err.code || 500).json({
+        code: err.code || 500,
         success: false,
         message: err.message || "Server error",
     });
 };
+
+export default errorHandler;

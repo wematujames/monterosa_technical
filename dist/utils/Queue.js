@@ -8,13 +8,18 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
+const ErrorResponse_1 = __importDefault(require("./ErrorResponse"));
 class Queue {
-    constructor(name, concurrency, executor) {
+    constructor(name, concurrency, executor, maxItems = 5) {
         this.jobIdCounter = 1;
         this.name = "queue";
         this.concurrency = 1;
         this.isQueueProcessing = false;
+        this.maxItems = 100;
         this.items = {
             waiting: [
                 { id: 1, data: {}, retries: 0 },
@@ -27,6 +32,8 @@ class Queue {
         };
         this.name = name;
         this.concurrency = concurrency;
+        if (maxItems)
+            this.maxItems = maxItems;
         this.executor = executor;
         // initial call to process to items
         this.runQueue();
@@ -34,6 +41,9 @@ class Queue {
     enqueue(data) {
         return __awaiter(this, void 0, void 0, function* () {
             const job = { id: this.jobIdCounter++, data, retries: 0 };
+            if (this.items.waiting.length >= this.maxItems) {
+                throw new ErrorResponse_1.default(429, "queueFull", "Queue is full.Cannot enqueue more tasks");
+            }
             this.items.waiting.push(job);
             this.runQueue();
         });
@@ -55,7 +65,7 @@ class Queue {
     }
     processJob(job) {
         return __awaiter(this, void 0, void 0, function* () {
-            const processingTime = Math.floor(Math.random() * (300 - 100 + 1)) + 100;
+            const processingTime = Math.floor(Math.random() * (30000 - 10000 + 1)) + 10000;
             return new Promise((resolve) => {
                 setTimeout(() => __awaiter(this, void 0, void 0, function* () {
                     try {
@@ -89,7 +99,9 @@ class Queue {
         });
     }
     onComplete(hook) {
-        return __awaiter(this, void 0, void 0, function* () { });
+        return __awaiter(this, void 0, void 0, function* () {
+            hook();
+        });
     }
     ;
     onFailed(hook) {
