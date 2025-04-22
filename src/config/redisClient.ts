@@ -1,10 +1,10 @@
-import { createClient } from "redis";
+import { createClient, RedisClientType } from "redis";
 import envVars from "./app";
 import logger from "../utils/Logger";
 
 const { redis } = envVars;
 
-let client: any;
+let client: RedisClientType;
 
 function connect() {
     if (client) return client;
@@ -14,7 +14,7 @@ function connect() {
         password: redis.password,
         socket: {
             host: redis.host,
-            // port: redis.port,
+            port: +redis.port ,
         },
     });
 

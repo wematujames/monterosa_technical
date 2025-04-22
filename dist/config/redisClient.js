@@ -16,7 +16,7 @@ function connect() {
         password: redis.password,
         socket: {
             host: redis.host,
-            // port: redis.port,
+            port: +redis.port,
         },
     });
     client.on("error", (err) => {
