@@ -6,7 +6,7 @@ const requestLogger = (req: Request, res: Response, next: NextFunction) => {
 
     res.on("finish", () => {
         logger.log({
-            type: "http_req",
+            type: "httpReq",
             request: {
                 url: req.originalUrl,
                 headers: req.headers,

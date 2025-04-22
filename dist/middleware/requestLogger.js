@@ -8,7 +8,7 @@ const requestLogger = (req, res, next) => {
     const startTime = Date.now();
     res.on("finish", () => {
         Logger_1.default.log({
-            type: "http_req",
+            type: "httpReq",
             request: {
                 url: req.originalUrl,
                 headers: req.headers,

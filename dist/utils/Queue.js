@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const metrics_1 = __importDefault(require("../data/metrics"));
+const ErrorResponse_1 = __importDefault(require("./ErrorResponse"));
 const Logger_1 = __importDefault(require("./Logger"));
 class Queue {
     constructor(name, concurrency, executor, maxItems = 5) {
@@ -12,6 +13,7 @@ class Queue {
         this.concurrency = 1;
         this.isQueueProcessing = false;
         this.maxItems = 100;
+        this.isShuttingDown = false;
         this.items = {
             waiting: [
                 { id: 1, data: {}, retries: 0 },
@@ -31,6 +33,10 @@ class Queue {
         this.runQueue();
     }
     async enqueue(data) {
+        if (this.isShuttingDown) {
+            throw new ErrorResponse_1.default(500, "processExiting", "Process exiting");
+        }
+        ;
         const job = { id: this.jobIdCounter++, data, retries: 0 };
         this.items.waiting.push(job);
         this.runQueue();
@@ -50,7 +56,7 @@ class Queue {
     }
     async processJob(job) {
         const startTime = Date.now();
-        const processingTime = Math.floor(Math.random() * (300 - 100 + 1)) + 100;
+        const processingTime = Math.floor(Math.random() * (3000 - 1000 + 1)) + 1000;
         return new Promise((resolve) => {
             setTimeout(async () => {
                 try {
@@ -87,7 +93,7 @@ class Queue {
         metrics_1.default.processing_times.push(duration);
         metrics_1.default.queue_current_length = this.items.waiting.length;
         Logger_1.default.log({
-            type: "job_queue_process",
+            type: "jobQueueProcess",
             jobId: job.id,
             status: "completed",
             data: job,
@@ -102,7 +108,7 @@ class Queue {
         metrics_1.default.processing_times.push(duration);
         metrics_1.default.queue_current_length = this.items.waiting.length;
         Logger_1.default.log({
-            type: "job_queue_process",
+            type: "jobQueueProcess",
             jobId: job.id,
             status: "failed",
             data: job,
@@ -111,5 +117,12 @@ class Queue {
         });
     }
     ;
+    set shutdown(val) {
+        this.isShuttingDown = val;
+    }
+    ;
+    async isQueueEmpty() {
+        return !this.isQueueProcessing && !this.items.waiting.length;
+    }
 }
 exports.default = Queue;

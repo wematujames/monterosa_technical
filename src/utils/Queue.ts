@@ -1,4 +1,5 @@
 import metrics from "../data/metrics";
+import ErrorResponse from "./ErrorResponse";
 import logger from "./Logger";
 
 class Queue {
@@ -8,6 +9,7 @@ class Queue {
     private executor: (job: IJob) => Promise<any>;
     private isQueueProcessing: boolean = false;
     private maxItems: number = 100;
+    private isShuttingDown: boolean = false;
 
     private items: JobItems = {
         waiting: [
@@ -38,6 +40,14 @@ class Queue {
     }
 
     async enqueue(data: object) {
+
+        if (this.isShuttingDown) {
+            throw new ErrorResponse(
+                500, "processExiting", 
+                "Process exiting"
+            );
+        };
+
         const job: IJob = { id: this.jobIdCounter++, data, retries: 0 }
 
         this.items.waiting.push(job);
@@ -66,7 +76,7 @@ class Queue {
     async processJob(job: IJob) {
         const startTime = Date.now();
 
-        const processingTime = Math.floor(Math.random() * (300 - 100 + 1)) + 100;
+        const processingTime = Math.floor(Math.random() * (3000 - 1000 + 1)) + 1000;
 
         return new Promise((resolve) => {
             setTimeout(async () => {
@@ -110,7 +120,7 @@ class Queue {
         metrics.queue_current_length = this.items.waiting.length;
 
         logger.log({
-            type: "job_queue_process",
+            type: "jobQueueProcess",
             jobId: job.id,
             status: "completed",
             data: job,
@@ -126,7 +136,7 @@ class Queue {
         metrics.queue_current_length = this.items.waiting.length;
 
         logger.log({
-            type: "job_queue_process",
+            type: "jobQueueProcess",
             jobId: job.id,
             status: "failed",
             data: job,
@@ -134,6 +144,14 @@ class Queue {
             queueLength: this.items.waiting.length,
         });
     };
+
+    set shutdown(val: boolean) {
+        this.isShuttingDown = val;
+    };
+
+    async isQueueEmpty ()  {
+        return !this.isQueueProcessing &&  !this.items.waiting.length
+    }
 }
 
 export default Queue;
