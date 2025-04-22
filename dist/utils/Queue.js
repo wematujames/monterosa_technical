@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const redisClient_1 = __importDefault(require("../config/redisClient"));
 const metrics_1 = __importDefault(require("../data/metrics"));
 const ErrorResponse_1 = __importDefault(require("./ErrorResponse"));
 const Logger_1 = __importDefault(require("./Logger"));
@@ -14,16 +15,6 @@ class Queue {
         this.isQueueProcessing = false;
         this.maxItems = 100;
         this.isShuttingDown = false;
-        this.items = {
-            waiting: [
-                { id: 1, data: {}, retries: 0 },
-                { id: 2, data: {}, retries: 0 },
-                { id: 3, data: {}, retries: 0 },
-                { id: 4, data: {}, retries: 0 }
-            ],
-            completed: [],
-            failed: [],
-        };
         this.name = name;
         this.concurrency = concurrency;
         if (maxItems)
@@ -38,14 +29,18 @@ class Queue {
         }
         ;
         const job = { id: this.jobIdCounter++, data, retries: 0 };
-        this.items.waiting.push(job);
+        // add item to redis queue
+        const client = await redisClient_1.default.connect();
+        await client.rPush(`${this.name}:waiting`, JSON.stringify(job));
+        // Ensure queue is processing items
         this.runQueue();
     }
     async runQueue() {
         if (this.isQueueProcessing)
             return;
         this.isQueueProcessing = true;
-        while (this.items.waiting.length > 0) {
+        const currentLength = await this.getLength();
+        while (currentLength > 0) {
             const itemsToProcess = await this.dequeue(this.concurrency);
             const promises = itemsToProcess.map(item => {
                 return this.processJob(item);
@@ -56,7 +51,7 @@ class Queue {
     }
     async processJob(job) {
         const startTime = Date.now();
-        const processingTime = Math.floor(Math.random() * (3000 - 1000 + 1)) + 1000;
+        const processingTime = Math.floor(Math.random() * (300 - 100 + 1)) + 100;
         return new Promise((resolve) => {
             setTimeout(async () => {
                 try {
@@ -67,53 +62,60 @@ class Queue {
                 catch (err) {
                     job.retries++;
                     // Push item back to waiting job for retry
-                    if (job.retries < 2)
-                        this.items.waiting.unshift(job);
+                    if (job.retries < 2) {
+                        const client = await redisClient_1.default.connect();
+                        await client.rPush(`${this.name}:waiting`, JSON.stringify(job));
+                    }
                     // Declare job as failed
                     else
                         this.onFailed(job, Date.now() - startTime);
-                    // 
                 }
                 resolve("processed");
             }, processingTime);
         });
     }
     async dequeue(number) {
-        return this.items.waiting.splice(0, number);
-    }
-    async isFull() {
-        return this.items.waiting.length >= this.maxItems;
-    }
-    async getLength() {
-        return this.items.waiting.length;
+        const client = await redisClient_1.default.connect();
+        const dequeued = [];
+        for (let i = 0; i < number; i++) {
+            const job = await client.lPop(this.name + ":waiting");
+            if (!job)
+                break;
+            dequeued.push(JSON.parse(job));
+        }
+        return dequeued;
     }
     async onComplete(job, duration) {
-        this.items.completed.push(job);
+        const client = await redisClient_1.default.connect();
+        const currentJobsLength = await client.lLen(this.name + ":waiting");
+        await client.rPush(`${this.name}:completed`, JSON.stringify(job));
         metrics_1.default.jobs_processed_total++;
         metrics_1.default.processing_times.push(duration);
-        metrics_1.default.queue_current_length = this.items.waiting.length;
+        metrics_1.default.queue_current_length = currentJobsLength;
         Logger_1.default.log({
             type: "jobQueueProcess",
             jobId: job.id,
             status: "completed",
             data: job,
             duration: duration,
-            queueLength: this.items.waiting.length,
+            queueLength: currentJobsLength
         });
     }
     ;
     async onFailed(job, duration) {
-        this.items.completed.push(job);
+        const client = await redisClient_1.default.connect();
+        const currentJobsLength = await client.lLen(this.name + ":waiting");
+        await client.rPush(`${this.name}:failed`, JSON.stringify(job));
         metrics_1.default.jobs_processed_total++;
         metrics_1.default.processing_times.push(duration);
-        metrics_1.default.queue_current_length = this.items.waiting.length;
+        metrics_1.default.queue_current_length = currentJobsLength;
         Logger_1.default.log({
             type: "jobQueueProcess",
             jobId: job.id,
             status: "failed",
             data: job,
             duration: duration,
-            queueLength: this.items.waiting.length,
+            queueLength: currentJobsLength
         });
     }
     ;
@@ -122,7 +124,18 @@ class Queue {
     }
     ;
     async isQueueEmpty() {
-        return !this.isQueueProcessing && !this.items.waiting.length;
+        const client = await redisClient_1.default.connect();
+        const currentLength = await client.lLen(this.name + ":waiting");
+        return !this.isQueueProcessing && !currentLength;
+    }
+    async isFull() {
+        const client = await redisClient_1.default.connect();
+        const currentLength = await client.lLen(this.name + ":waiting");
+        return currentLength >= this.maxItems;
+    }
+    async getLength() {
+        const client = await redisClient_1.default.connect();
+        return client.lLen(this.name + ":waiting");
     }
 }
 exports.default = Queue;

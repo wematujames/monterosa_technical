@@ -1,6 +1,7 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 require("dotenv").config();
-
-module.exports = {
+exports.default = {
     redis: {
         host: process.env.REDIS_HOST || "127.0.0.1",
         port: process.env.REDIS_PORT || 6379,
