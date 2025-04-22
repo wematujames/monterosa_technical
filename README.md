@@ -19,7 +19,6 @@ Observability
 
 -   Run `npm i` to install project dependencies
 
-### Run The Application (scripts)
 -   Run `npm start` to run the nodejs server 
 
 -   Run `npm test` to the unit tests
