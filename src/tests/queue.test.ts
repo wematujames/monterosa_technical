@@ -6,7 +6,7 @@ describe("Queue", () => {
   const maxLength = 5;
 
   beforeEach(async () => {
-    // Flush Redis for test isolation
+    // Empty redis store for tests
     const client = await redisClient.connect();
     await client.flushAll();
 

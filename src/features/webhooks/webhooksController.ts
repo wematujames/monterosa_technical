@@ -1,10 +1,10 @@
 import { Request, Response, NextFunction } from "express";
 import asyncHandler from "../../middleware/asyncHandler";
-import { dispatchToItemsQueue } from "../../queues/itemsQueue";
 import SuccessResponse from "../../utils/SuccessResponse";
+import webhookService from "./webhooksSerivce";
 
 const queueItem = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    await dispatchToItemsQueue(req.body);
+    await webhookService.sendItemToQueue(req.body);
 
     res.status(202).json(new SuccessResponse(
         202,

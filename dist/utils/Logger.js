@@ -5,8 +5,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
-const LOGS_FOLDER = "logs";
-const LOGS_FILE_NAME = "";
 class Logger {
     constructor(folderName, fileName) {
         const logFolderPath = path_1.default.join(__dirname, folderName);

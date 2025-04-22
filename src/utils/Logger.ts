@@ -1,9 +1,6 @@
 import fs from 'fs';
 import path from 'path';
 
-const LOGS_FOLDER = "logs";
-const LOGS_FILE_NAME = "";
-
 class Logger { 
     private readonly filePath: string; 
 

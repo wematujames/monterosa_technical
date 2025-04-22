@@ -7,7 +7,7 @@ import requestLogger from "../middleware/requestLogger";
 
 const router = Router();
 
-// Log incomming request info
+// Log incomming request info (count)
 router.use(requestLogger);
 
 router.use("/webhook", recordRequests, webhooksRouter);

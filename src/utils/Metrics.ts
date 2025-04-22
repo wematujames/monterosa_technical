@@ -7,12 +7,6 @@ type MetricType = "httpRequestsTotal" |
 "processDurations";
 
 class Metric {
-    // private "httpRequestsTotal": number = 0;
-    // private "http429Total": number = 0;
-    // private "processedJobsTotal": number = 0;
-    // private "queueLength": number = 0;
-    // private "processDurations": number[] = [];
-
     constructor () {
         this.init();
     }
@@ -65,16 +59,17 @@ class Metric {
 
         const metrics =  await client.hGetAll("metric");
 
-        const avgJobDuration = JSON.parse(metrics.processDurations).reduce(
+        const durations = JSON.parse(metrics.processDurations)
+
+        const avgJobDuration = durations.length ? (durations.reduce(
             (c: number, n: number) => c + n, 0
-        ) / 1000;
+        ) / durations.length) / 1000 : 0;
     
         return {
             http_requests_total: metrics.httpRequestsTotal,
             http_responses_429_total: metrics.http429Total,
             jobs_processed_total: metrics.processedJobsTotal,
             queue_current_length: metrics.queueLength,
-            // processing_times: metrics.processDurations,
             avg_processing_time: parseFloat(avgJobDuration + "").toFixed(2) + "s"
         }
     }

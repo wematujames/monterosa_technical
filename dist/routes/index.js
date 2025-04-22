@@ -10,7 +10,7 @@ const errorHandler_1 = __importDefault(require("../middleware/errorHandler"));
 const recordRequests_1 = __importDefault(require("../middleware/recordRequests"));
 const requestLogger_1 = __importDefault(require("../middleware/requestLogger"));
 const router = (0, express_1.Router)();
-// Log incomming request info
+// Log incomming request info (count)
 router.use(requestLogger_1.default);
 router.use("/webhook", recordRequests_1.default, webhooksRouter_1.default);
 router.use("/metrics", metricsRouter_1.default);
