@@ -11,7 +11,7 @@ class Metric {
     async init() {
         const client = await redisClient_1.default.connect();
         const existingMetric = await client.hGetAll("metric");
-        if (Object.keys(existingMetric).length)
+        if (Object.keys(existingMetric).length >= 5)
             return;
         await client.hSet("metric", "httpRequestsTotal", "0");
         await client.hSet("metric", "http429Total", "0");
