@@ -9,14 +9,14 @@ class Queue {
     private concurrency: number = 1;
     private executor: (job: IJob) => Promise<any>;
     private isQueueProcessing: boolean = false;
-    private maxItems: number = 100;
+    private maxItems: number = 5;
     private isShuttingDown: boolean = false;
 
     constructor(
         name: string, 
         concurrency: number,
         executor: (job: IJob) => Promise<any>,
-        maxItems: number = 5,
+        maxItems?: number,
     ) {
         this.name = name;
         this.concurrency = concurrency;
@@ -37,6 +37,19 @@ class Queue {
             );
         };
 
+        const isQueueFull = await this.isFull();
+
+        if (isQueueFull) {
+            metrics.http_responses_429_total++;
+            throw new ErrorResponse(
+                429,
+                "queueFull",
+                "Queue is full.Cannot enqueue more tasks"
+            );
+        }
+
+        metrics.queue_current_length++;
+
         const job: IJob = { id: this.jobIdCounter++, data, retries: 0 }
 
         // add item to redis queue
@@ -45,16 +58,20 @@ class Queue {
         
         // Ensure queue is processing items
         this.runQueue();
+
+        // setInterval(() => {
+        //     console.log("is processing", this.isQueueProcessing);
+        // }, 500);
     }
 
     async runQueue() {
         if (this.isQueueProcessing) return;
 
-        this.isQueueProcessing = true;
-        
-        const currentLength = await this.getLength();
+        if (await this.getLength() > 0) {
+            this.isQueueProcessing = true;
+        }
 
-        while (currentLength > 0) {
+        while ((await this.getLength()) > 0) {
             const itemsToProcess = await this.dequeue(this.concurrency);
 
             const promises = itemsToProcess.map(item => {
@@ -70,7 +87,7 @@ class Queue {
     async processJob(job: IJob) {
         const startTime = Date.now();
 
-        const processingTime = Math.floor(Math.random() * (300 - 100 + 1)) + 100;
+        const processingTime = Math.floor(Math.random() * (3000 - 1000 + 1)) + 1000;
 
         return new Promise((resolve) => {
             setTimeout(async () => {
@@ -155,8 +172,8 @@ class Queue {
         const client = await redisClient.connect();
         
         const currentLength = await client.lLen(this.name + ":waiting");
-
-        return !this.isQueueProcessing &&  !currentLength
+        
+        return !currentLength && !this.isQueueProcessing
     }
 
     async isFull () {

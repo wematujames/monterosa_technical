@@ -8,12 +8,12 @@ const metrics_1 = __importDefault(require("../data/metrics"));
 const ErrorResponse_1 = __importDefault(require("./ErrorResponse"));
 const Logger_1 = __importDefault(require("./Logger"));
 class Queue {
-    constructor(name, concurrency, executor, maxItems = 5) {
+    constructor(name, concurrency, executor, maxItems) {
         this.jobIdCounter = 1;
         this.name = "queue";
         this.concurrency = 1;
         this.isQueueProcessing = false;
-        this.maxItems = 100;
+        this.maxItems = 5;
         this.isShuttingDown = false;
         this.name = name;
         this.concurrency = concurrency;
@@ -28,19 +28,29 @@ class Queue {
             throw new ErrorResponse_1.default(500, "processExiting", "Process exiting");
         }
         ;
+        const isQueueFull = await this.isFull();
+        if (isQueueFull) {
+            metrics_1.default.http_responses_429_total++;
+            throw new ErrorResponse_1.default(429, "queueFull", "Queue is full.Cannot enqueue more tasks");
+        }
+        metrics_1.default.queue_current_length++;
         const job = { id: this.jobIdCounter++, data, retries: 0 };
         // add item to redis queue
         const client = await redisClient_1.default.connect();
         await client.rPush(`${this.name}:waiting`, JSON.stringify(job));
         // Ensure queue is processing items
         this.runQueue();
+        // setInterval(() => {
+        //     console.log("is processing", this.isQueueProcessing);
+        // }, 500);
     }
     async runQueue() {
         if (this.isQueueProcessing)
             return;
-        this.isQueueProcessing = true;
-        const currentLength = await this.getLength();
-        while (currentLength > 0) {
+        if (await this.getLength() > 0) {
+            this.isQueueProcessing = true;
+        }
+        while ((await this.getLength()) > 0) {
             const itemsToProcess = await this.dequeue(this.concurrency);
             const promises = itemsToProcess.map(item => {
                 return this.processJob(item);
@@ -51,7 +61,7 @@ class Queue {
     }
     async processJob(job) {
         const startTime = Date.now();
-        const processingTime = Math.floor(Math.random() * (300 - 100 + 1)) + 100;
+        const processingTime = Math.floor(Math.random() * (3000 - 1000 + 1)) + 1000;
         return new Promise((resolve) => {
             setTimeout(async () => {
                 try {
@@ -126,7 +136,7 @@ class Queue {
     async isQueueEmpty() {
         const client = await redisClient_1.default.connect();
         const currentLength = await client.lLen(this.name + ":waiting");
-        return !this.isQueueProcessing && !currentLength;
+        return !currentLength && !this.isQueueProcessing;
     }
     async isFull() {
         const client = await redisClient_1.default.connect();
