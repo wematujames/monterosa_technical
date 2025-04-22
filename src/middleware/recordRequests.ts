@@ -1,8 +1,9 @@
 import { Request, Response, NextFunction } from "express";
-import metrics from "../data/metrics";
+import metrics from "../utils/Metrics";
 
-const recordNoOfRequests = (req: Request, res: Response, next: NextFunction) => {
-    metrics.http_requests_total++;
+const recordNoOfRequests = async (req: Request, res: Response, next: NextFunction) => {
+    await metrics.increaseMetric("httpRequestsTotal");
+    
     next();
 }
 

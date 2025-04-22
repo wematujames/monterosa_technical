@@ -1,7 +1,7 @@
 import redisClient from "../config/redisClient";
-import metrics from "../data/metrics";
 import ErrorResponse from "./ErrorResponse";
 import logger from "./Logger";
+import metrics from "../utils/Metrics";
 
 class Queue {
     private jobIdCounter: number = 1;
@@ -40,7 +40,8 @@ class Queue {
         const isQueueFull = await this.isFull();
 
         if (isQueueFull) {
-            metrics.http_responses_429_total++;
+            // metrics.http_responses_429_total++;
+            await metrics.increaseMetric("http429Total");
             throw new ErrorResponse(
                 429,
                 "queueFull",
@@ -48,7 +49,8 @@ class Queue {
             );
         }
 
-        metrics.queue_current_length++;
+        // metrics.queue_current_length++;
+        await metrics.increaseMetric("queueLength");
 
         const job: IJob = { id: this.jobIdCounter++, data, retries: 0 }
 
@@ -131,9 +133,9 @@ class Queue {
         const currentJobsLength = await client.lLen(this.name + ":waiting");
 
         await client.rPush(`${this.name}:completed`, JSON.stringify(job));
-        metrics.jobs_processed_total++;
-        metrics.processing_times.push(duration);
-        metrics.queue_current_length = currentJobsLength
+        await metrics.increaseMetric("processedJobsTotal") //jobs_processed_total++;
+        await metrics.addDuration(duration) //processing_times.push(duration);
+        await metrics.setLength(currentJobsLength) //queue_current_length = currentJobsLength
 
         logger.log({
             type: "jobQueueProcess",
@@ -150,9 +152,9 @@ class Queue {
         const currentJobsLength = await client.lLen(this.name + ":waiting");
 
         await client.rPush(`${this.name}:failed`, JSON.stringify(job));
-        metrics.jobs_processed_total++;
-        metrics.processing_times.push(duration);
-        metrics.queue_current_length = currentJobsLength
+        await metrics.increaseMetric("processedJobsTotal") //jobs_processed_total++;
+        await metrics.addDuration(duration) //processing_times.push(duration);
+        await metrics.setLength(currentJobsLength) //queue_current_length = currentJobsLength
 
         logger.log({
             type: "jobQueueProcess",

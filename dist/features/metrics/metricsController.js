@@ -4,14 +4,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const asyncHandler_1 = __importDefault(require("../../middleware/asyncHandler"));
+const Metrics_1 = __importDefault(require("../../utils/Metrics"));
 const SuccessResponse_1 = __importDefault(require("../../utils/SuccessResponse"));
-const metrics_1 = __importDefault(require("../../data/metrics"));
-const getMetrics = (0, asyncHandler_1.default)((req, res, next) => {
-    const avgJobDuration = metrics_1.default.processing_times.reduce((c, n) => c + n, 0) / 1000;
-    return res.status(200).json(new SuccessResponse_1.default(200, "Success", {
-        ...metrics_1.default,
-        avg_processing_time: parseFloat(avgJobDuration + "").toFixed(2) + "s",
-        processing_times: undefined,
-    }));
+const getMetrics = (0, asyncHandler_1.default)(async (req, res, next) => {
+    const metricsData = await Metrics_1.default.getMetrics();
+    return res.status(200).json(new SuccessResponse_1.default(200, "Success", metricsData));
 });
 exports.default = { getMetrics };

@@ -1,6 +1,6 @@
 interface IJob {
     id: string | number;
-    data: object;
+    data: any;
     err?: object;
     retries: number;
 }

@@ -4,9 +4,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const redisClient_1 = __importDefault(require("../config/redisClient"));
-const metrics_1 = __importDefault(require("../data/metrics"));
 const ErrorResponse_1 = __importDefault(require("./ErrorResponse"));
 const Logger_1 = __importDefault(require("./Logger"));
+const Metrics_1 = __importDefault(require("../utils/Metrics"));
 class Queue {
     constructor(name, concurrency, executor, maxItems) {
         this.jobIdCounter = 1;
@@ -30,10 +30,12 @@ class Queue {
         ;
         const isQueueFull = await this.isFull();
         if (isQueueFull) {
-            metrics_1.default.http_responses_429_total++;
+            // metrics.http_responses_429_total++;
+            await Metrics_1.default.increaseMetric("http429Total");
             throw new ErrorResponse_1.default(429, "queueFull", "Queue is full.Cannot enqueue more tasks");
         }
-        metrics_1.default.queue_current_length++;
+        // metrics.queue_current_length++;
+        await Metrics_1.default.increaseMetric("queueLength");
         const job = { id: this.jobIdCounter++, data, retries: 0 };
         // add item to redis queue
         const client = await redisClient_1.default.connect();
@@ -99,9 +101,9 @@ class Queue {
         const client = await redisClient_1.default.connect();
         const currentJobsLength = await client.lLen(this.name + ":waiting");
         await client.rPush(`${this.name}:completed`, JSON.stringify(job));
-        metrics_1.default.jobs_processed_total++;
-        metrics_1.default.processing_times.push(duration);
-        metrics_1.default.queue_current_length = currentJobsLength;
+        await Metrics_1.default.increaseMetric("processedJobsTotal"); //jobs_processed_total++;
+        await Metrics_1.default.addDuration(duration); //processing_times.push(duration);
+        await Metrics_1.default.setLength(currentJobsLength); //queue_current_length = currentJobsLength
         Logger_1.default.log({
             type: "jobQueueProcess",
             jobId: job.id,
@@ -116,9 +118,9 @@ class Queue {
         const client = await redisClient_1.default.connect();
         const currentJobsLength = await client.lLen(this.name + ":waiting");
         await client.rPush(`${this.name}:failed`, JSON.stringify(job));
-        metrics_1.default.jobs_processed_total++;
-        metrics_1.default.processing_times.push(duration);
-        metrics_1.default.queue_current_length = currentJobsLength;
+        await Metrics_1.default.increaseMetric("processedJobsTotal"); //jobs_processed_total++;
+        await Metrics_1.default.addDuration(duration); //processing_times.push(duration);
+        await Metrics_1.default.setLength(currentJobsLength); //queue_current_length = currentJobsLength
         Logger_1.default.log({
             type: "jobQueueProcess",
             jobId: job.id,
