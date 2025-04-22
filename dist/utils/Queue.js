@@ -63,7 +63,7 @@ class Queue {
     }
     async processJob(job) {
         const startTime = Date.now();
-        const processingTime = Math.floor(Math.random() * (3000 - 1000 + 1)) + 1000;
+        const processingTime = Math.floor(Math.random() * (300 - 100 + 1)) + 100;
         return new Promise((resolve) => {
             setTimeout(async () => {
                 try {

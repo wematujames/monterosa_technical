@@ -22,4 +22,4 @@ process.on("SIGINT", async () => {
         }
     }, 600);
 });
-app.listen(5555, () => console.log("Server running"));
+app.listen(5555);

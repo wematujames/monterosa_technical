@@ -29,5 +29,7 @@ interface ILogEvent {
     },
     response?: { statusCode: number }
     
+    data?: any;
+    
     timestamp: Date;
 }

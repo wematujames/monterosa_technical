@@ -19,15 +19,11 @@ function connect() {
     });
 
     client.on("error", (err: Error) => {
-        // logger.log("Redis error:", err);
+        logger.log({type: "redisError", data: err.stack });
     });
 
     client.on("connect", () => {
-        // logger.info("Redis connected");
-    });
-
-    client.on("end", () => {
-        // logger.info("Redis connection closed");
+        logger.log({type: "redisConnected"});
     });
 
     client.connect();
@@ -40,7 +36,7 @@ function disconnect() {
         client.quit().catch((err: Error) => {
             logger.log({
                 type: "redisClientExitError",
-                stack: err.toString()
+                data: err.stack
             });
         });
     }
