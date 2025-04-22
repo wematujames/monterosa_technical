@@ -2,6 +2,7 @@ import Queue from "../utils/Queue";
 
 // Job processor 
 const processJob = async (job: IJob) => {
+    throw new Error("not processed")
    await Promise.resolve(job); 
 }
 

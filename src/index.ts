@@ -7,4 +7,7 @@ app.use(express.json());
 
 app.use(router);
 
+// process.on("SIGINT", () => {
+//     console.log("")
+// });
 app.listen(5555, () => console.log("Server running"));

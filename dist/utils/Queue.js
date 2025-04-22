@@ -1,18 +1,10 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const metrics_1 = __importDefault(require("../data/metrics"));
+const Logger_1 = __importDefault(require("./Logger"));
 class Queue {
     constructor(name, concurrency, executor, maxItems = 5) {
         this.jobIdCounter = 1;
@@ -22,10 +14,10 @@ class Queue {
         this.maxItems = 100;
         this.items = {
             waiting: [
-            // { id: 1, data: {}, retries: 0 },
-            // { id: 2, data: {}, retries: 0 },
-            // { id: 3, data: {}, retries: 0 },
-            // { id: 4, data: {}, retries: 0 }
+                { id: 1, data: {}, retries: 0 },
+                { id: 2, data: {}, retries: 0 },
+                { id: 3, data: {}, retries: 0 },
+                { id: 4, data: {}, retries: 0 }
             ],
             completed: [],
             failed: [],
@@ -38,83 +30,84 @@ class Queue {
         // initial call to process to items
         this.runQueue();
     }
-    enqueue(data) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const job = { id: this.jobIdCounter++, data, retries: 0 };
-            this.items.waiting.push(job);
-            this.runQueue();
-        });
+    async enqueue(data) {
+        const job = { id: this.jobIdCounter++, data, retries: 0 };
+        this.items.waiting.push(job);
+        this.runQueue();
     }
-    runQueue() {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (this.isQueueProcessing)
-                return;
-            this.isQueueProcessing = true;
-            while (this.items.waiting.length > 0) {
-                const itemsToProcess = yield this.dequeue(this.concurrency);
-                const promises = itemsToProcess.map(item => {
-                    return this.processJob(item);
-                });
-                yield Promise.all(promises);
-            }
-            this.isQueueProcessing = false;
-        });
-    }
-    processJob(job) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const startTime = Date.now();
-            const processingTime = Math.floor(Math.random() * (3000 - 1000 + 1)) + 1000;
-            return new Promise((resolve) => {
-                setTimeout(() => __awaiter(this, void 0, void 0, function* () {
-                    try {
-                        yield this.executor(job);
-                        // Push item to completed items
-                        this.onComplete(job, Date.now() - startTime);
-                    }
-                    catch (err) {
-                        job.retries++;
-                        // Push item back to waiting job for retry
-                        if (job.retries < 2)
-                            this.items.waiting.unshift(job);
-                        // Declare job as failed
-                        else
-                            this.onFailed(job, Date.now() - startTime);
-                    }
-                    resolve("processed");
-                }), processingTime);
+    async runQueue() {
+        if (this.isQueueProcessing)
+            return;
+        this.isQueueProcessing = true;
+        while (this.items.waiting.length > 0) {
+            const itemsToProcess = await this.dequeue(this.concurrency);
+            const promises = itemsToProcess.map(item => {
+                return this.processJob(item);
             });
+            await Promise.all(promises);
+        }
+        this.isQueueProcessing = false;
+    }
+    async processJob(job) {
+        const startTime = Date.now();
+        const processingTime = Math.floor(Math.random() * (300 - 100 + 1)) + 100;
+        return new Promise((resolve) => {
+            setTimeout(async () => {
+                try {
+                    await this.executor(job);
+                    // Push item to completed items
+                    this.onComplete(job, Date.now() - startTime);
+                }
+                catch (err) {
+                    job.retries++;
+                    // Push item back to waiting job for retry
+                    if (job.retries < 2)
+                        this.items.waiting.unshift(job);
+                    // Declare job as failed
+                    else
+                        this.onFailed(job, Date.now() - startTime);
+                    // 
+                }
+                resolve("processed");
+            }, processingTime);
         });
     }
-    dequeue(number) {
-        return __awaiter(this, void 0, void 0, function* () {
-            return this.items.waiting.splice(0, number);
-        });
+    async dequeue(number) {
+        return this.items.waiting.splice(0, number);
     }
-    isFull() {
-        return __awaiter(this, void 0, void 0, function* () {
-            return this.items.waiting.length >= this.maxItems;
-        });
+    async isFull() {
+        return this.items.waiting.length >= this.maxItems;
     }
-    getLength() {
-        return __awaiter(this, void 0, void 0, function* () {
-            return this.items.waiting.length;
-        });
+    async getLength() {
+        return this.items.waiting.length;
     }
-    onComplete(job, duration) {
-        return __awaiter(this, void 0, void 0, function* () {
-            this.items.completed.push(job);
-            metrics_1.default.jobs_processed_total++;
-            metrics_1.default.processing_times.push(duration);
-            metrics_1.default.queue_current_length = this.items.waiting.length;
+    async onComplete(job, duration) {
+        this.items.completed.push(job);
+        metrics_1.default.jobs_processed_total++;
+        metrics_1.default.processing_times.push(duration);
+        metrics_1.default.queue_current_length = this.items.waiting.length;
+        Logger_1.default.log({
+            type: "job_queue_process",
+            jobId: job.id,
+            status: "completed",
+            data: job,
+            duration: duration,
+            queueLength: this.items.waiting.length,
         });
     }
     ;
-    onFailed(job, duration) {
-        return __awaiter(this, void 0, void 0, function* () {
-            this.items.completed.push(job);
-            metrics_1.default.jobs_processed_total++;
-            metrics_1.default.processing_times.push(duration);
-            metrics_1.default.queue_current_length = this.items.waiting.length;
+    async onFailed(job, duration) {
+        this.items.completed.push(job);
+        metrics_1.default.jobs_processed_total++;
+        metrics_1.default.processing_times.push(duration);
+        metrics_1.default.queue_current_length = this.items.waiting.length;
+        Logger_1.default.log({
+            type: "job_queue_process",
+            jobId: job.id,
+            status: "failed",
+            data: job,
+            duration: duration,
+            queueLength: this.items.waiting.length,
         });
     }
     ;

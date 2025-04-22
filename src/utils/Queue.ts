@@ -1,4 +1,5 @@
 import metrics from "../data/metrics";
+import logger from "./Logger";
 
 class Queue {
     private jobIdCounter: number = 1;
@@ -10,10 +11,10 @@ class Queue {
 
     private items: JobItems = {
         waiting: [
-            // { id: 1, data: {}, retries: 0 },
-            // { id: 2, data: {}, retries: 0 },
-            // { id: 3, data: {}, retries: 0 },
-            // { id: 4, data: {}, retries: 0 }
+            { id: 1, data: {}, retries: 0 },
+            { id: 2, data: {}, retries: 0 },
+            { id: 3, data: {}, retries: 0 },
+            { id: 4, data: {}, retries: 0 }
         ],
         completed: [],
         failed: [],
@@ -65,7 +66,7 @@ class Queue {
     async processJob(job: IJob) {
         const startTime = Date.now();
 
-        const processingTime = Math.floor(Math.random() * (3000 - 1000 + 1)) + 1000;
+        const processingTime = Math.floor(Math.random() * (300 - 100 + 1)) + 100;
 
         return new Promise((resolve) => {
             setTimeout(async () => {
@@ -81,6 +82,8 @@ class Queue {
                     if (job.retries < 2) this.items.waiting.unshift(job);
                     // Declare job as failed
                     else this.onFailed(job, Date.now() - startTime);
+                    
+                    // 
                 }
 
                 resolve("processed");
@@ -105,6 +108,15 @@ class Queue {
         metrics.jobs_processed_total++;
         metrics.processing_times.push(duration);
         metrics.queue_current_length = this.items.waiting.length;
+
+        logger.log({
+            type: "job_queue_process",
+            jobId: job.id,
+            status: "completed",
+            data: job,
+            duration: duration,
+            queueLength: this.items.waiting.length,
+        });
     };
 
     async onFailed (job: IJob, duration: number) {
@@ -112,6 +124,15 @@ class Queue {
         metrics.jobs_processed_total++;
         metrics.processing_times.push(duration);
         metrics.queue_current_length = this.items.waiting.length;
+
+        logger.log({
+            type: "job_queue_process",
+            jobId: job.id,
+            status: "failed",
+            data: job,
+            duration: duration,
+            queueLength: this.items.waiting.length,
+        });
     };
 }
 

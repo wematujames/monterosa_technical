@@ -4,6 +4,7 @@ import SuccessResponse from "../../utils/SuccessResponse";
 import metrics from "../../data/metrics";
 
 const getMetrics = asyncHandler((req: Request, res: Response, next: NextFunction) => {
+
     const avgJobDuration = metrics.processing_times.reduce(
         (c, n) => c + n, 0
     ) / 1000;

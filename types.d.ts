@@ -17,3 +17,17 @@ type JobType = "waiting" |
     "paused" |
     "completed" |
     "failed";
+
+interface ILogEvent {
+    name: string,
+
+    request?: {
+        url: string;
+        method: string; 
+        headers: any;
+        body: any;
+    },
+    response?: { statusCode: number }
+    
+    timestamp: Date;
+}
