@@ -16,7 +16,7 @@ class Metric {
 
         const existingMetric = await client.hGetAll("metric");
 
-        if (Object.keys(existingMetric).length) return;
+        if (Object.keys(existingMetric).length >= 5) return;
 
         await client.hSet("metric", "httpRequestsTotal", "0");
         await client.hSet("metric", "http429Total", "0");
