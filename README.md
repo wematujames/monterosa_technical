@@ -14,7 +14,7 @@ Observability
     in the `root` folder
 
 -   Fill out the envriment variables.
-    `NB: Not really necessary if you have redis on 
+    `NB: Not really necessary if you have redis
     installed with defaults unchanged `
 
 -   Run `npm i` to install project dependencies
