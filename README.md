@@ -27,4 +27,7 @@ Observability
 -   Run `npm run dev` to run project
     with nodemon for auto restarts
 
+-   At the root is the postman collection which 
+    can be import and used 
+    
 ### END

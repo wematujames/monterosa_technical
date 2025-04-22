@@ -1,0 +1,67 @@
+{
+	"info": {
+		"_postman_id": "eca3db6f-9050-43cb-844d-950f736ea859",
+		"name": "Monterosa Technical",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "12061297"
+	},
+	"item": [
+		{
+			"name": "webhooks",
+			"item": [
+				{
+					"name": "Queue Item",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"task\": \"Queue something\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:5555/webhook/",
+							"host": [
+								"localhost"
+							],
+							"port": "5555",
+							"path": [
+								"webhook",
+								""
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "metrics",
+			"item": [
+				{
+					"name": "Get Metrics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:5555/metrics/",
+							"host": [
+								"localhost"
+							],
+							"port": "5555",
+							"path": [
+								"metrics",
+								""
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
